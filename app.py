@@ -6,19 +6,23 @@ import time
 
 # Function to fetch litigation data from CourtListener API (free source)
 def fetch_litigation_data():
-    url = "https://www.courtlistener.com/api/rest/v3/dockets/?type=federal"
+    url = "https://www.courtlistener.com/api/rest/v3/dockets/"
+    params = {
+        "type": "federal",  # Get federal cases
+        "order_by": "date_filed",  # Sort by most recent
+        "page_size": 10  # Get more results
+    }
     headers = {"User-Agent": "Litigation-Tracker/1.0"}  # User-Agent to prevent blocking
     try:
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=headers, params=params, timeout=10)
         response.raise_for_status()  # Raise an error for HTTP errors
         data = response.json()
-        st.write("Raw API Response:", data)  # Debugging step to check API response
         if "results" in data and len(data["results"]) > 0:
             case_list = []
             for case in data.get("results", []):
                 case_list.append({
                     "Case Number": case.get("docket_number", "N/A"),
-                    "Case Link": f"[Link]({case.get('absolute_url', '#')})",
+                    "Case Link": f"[Link](https://www.courtlistener.com{case.get('absolute_url', '#')})",
                     "Case Title": case.get("case_name", "N/A"),
                     "Court": case.get("court", {}).get("name", "Unknown Court"),
                     "Date Filed": case.get("date_filed", "N/A"),
@@ -30,7 +34,7 @@ def fetch_litigation_data():
                 })
             return pd.DataFrame(case_list)
         else:
-            st.warning("No recent litigation cases found.")
+            st.warning("No recent litigation cases found via CourtListener API.")
             return pd.DataFrame(columns=["Case Number", "Case Link", "Case Title", "Court", "Date Filed", "Last Update", "Status", "Key Rulings", "Impact on Federal Grants", "Litigation Summary"])
     except requests.exceptions.RequestException as e:
         st.error(f"Failed to fetch litigation data: {e}")
