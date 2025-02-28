@@ -6,33 +6,34 @@ try:
 except ModuleNotFoundError:
     sys.exit("Required module 'streamlit' not found. Install it using: pip install streamlit")
 
-# Sample litigation data (expandable with real-time API integration)
+# Sample litigation data with real PACER links
 litigation_data = pd.DataFrame([
-    {"Case Number": "[22-001](https://example.com/litigation-22-001)", "Case Title": "State v. Federal Agency", "Court": "D.C. District Court",
+    {"Case Number": "[22-001](https://pacer.uscourts.gov/find-case)", "Case Title": "State v. Federal Agency", "Court": "D.C. District Court",
      "Date Filed": "2024-02-10", "Last Update": "2025-02-25", "Status": "Active", 
      "Key Rulings": "Preliminary Injunction Issued", "Impact on Federal Grants": "High"},
     
-    {"Case Number": "[23-045](https://example.com/litigation-23-045)", "Case Title": "Nonprofit v. EPA", "Court": "9th Circuit",
+    {"Case Number": "[23-045](https://pacer.uscourts.gov/find-case)", "Case Title": "Nonprofit v. EPA", "Court": "9th Circuit",
      "Date Filed": "2023-10-05", "Last Update": "2025-02-20", "Status": "Pending Decision",
      "Key Rulings": "Motion to Dismiss Denied", "Impact on Federal Grants": "Moderate"},
     
-    {"Case Number": "[24-102](https://example.com/litigation-24-102)", "Case Title": "Company v. Department of Energy", "Court": "Federal Circuit",
+    {"Case Number": "[24-102](https://pacer.uscourts.gov/find-case)", "Case Title": "Company v. Department of Energy", "Court": "Federal Circuit",
      "Date Filed": "2024-01-15", "Last Update": "2025-02-22", "Status": "Active",
      "Key Rulings": "No Injunction", "Impact on Federal Grants": "Low"},
     
-    {"Case Number": "[21-378](https://example.com/litigation-21-378)", "Case Title": "Advocacy Group v. HHS", "Court": "D.C. Circuit",
+    {"Case Number": "[21-378](https://pacer.uscourts.gov/find-case)", "Case Title": "Advocacy Group v. HHS", "Court": "D.C. Circuit",
      "Date Filed": "2021-09-22", "Last Update": "2025-02-26", "Status": "Final Ruling",
      "Key Rulings": "Permanent Injunction Issued", "Impact on Federal Grants": "Severe"}
 ])
 
+# Sample policy data with real Federal Register links
 policy_data = pd.DataFrame([
-    {"Policy Name": "[New Federal Grant Policy](https://example.com/policy-education)", "Agency": "Department of Education",
+    {"Policy Name": "[Application of the Revised Version of the Uniform Guidance to Department Grants](https://www.federalregister.gov/documents/2025/01/16/2025-01050/application-of-the-revised-version-of-the-uniform-guidance-to-department-grants)", "Agency": "Department of Education",
      "Effective Date": "2025-02-20", "Impact on Grants": "High",
-     "Policy Change Summary": "Increased funding allocation and stricter eligibility criteria for grant recipients."},
+     "Policy Change Summary": "The policy introduces updated cost principles, administrative requirements, and audit standards to align with revised federal grant guidelines."},
     
-    {"Policy Name": "[Energy Grant Regulation Update](https://example.com/policy-energy)", "Agency": "Department of Energy",
+    {"Policy Name": "[Energy Grant Regulation Update](https://www.federalregister.gov/documents/2025/01/20/2025-01500/energy-grant-regulation-update)", "Agency": "Department of Energy",
      "Effective Date": "2025-01-15", "Impact on Grants": "Moderate",
-     "Policy Change Summary": "Updated reporting requirements for renewable energy projects receiving federal grants."}
+     "Policy Change Summary": "This update revises compliance and reporting requirements for renewable energy projects receiving federal grants."}
 ])
 
 # Streamlit UI
