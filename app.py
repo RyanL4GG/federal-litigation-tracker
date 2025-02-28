@@ -3,108 +3,124 @@ import requests
 import streamlit as st
 import pandas as pd
 import time
+from datetime import datetime
+from bs4 import BeautifulSoup
 
-# Function to fetch litigation data from CourtListener API (free source)
-def fetch_litigation_data():
-    url = "https://www.courtlistener.com/api/rest/v3/dockets/"
-    params = {
-        "type": "federal",  # Get federal cases
-        "order_by": "date_filed",  # Sort by most recent
-        "page_size": 10  # Get more results
-    }
-    headers = {"User-Agent": "Litigation-Tracker/1.0"}  # User-Agent to prevent blocking
+# Function to fetch litigation data from GovInfo API
+def fetch_govinfo_data(api_key, start_date):
+    url = f"https://api.govinfo.gov/collections/USCOURTS/{start_date}?api_key={api_key}"
     try:
-        response = requests.get(url, headers=headers, params=params, timeout=10)
-        response.raise_for_status()  # Raise an error for HTTP errors
+        response = requests.get(url)
+        response.raise_for_status()
         data = response.json()
-        if "results" in data and len(data["results"]) > 0:
-            case_list = []
-            for case in data.get("results", []):
-                case_list.append({
-                    "Case Number": case.get("docket_number", "N/A"),
-                    "Case Link": f"[Link](https://www.courtlistener.com{case.get('absolute_url', '#')})",
-                    "Case Title": case.get("case_name", "N/A"),
-                    "Court": case.get("court", {}).get("name", "Unknown Court"),
-                    "Date Filed": case.get("date_filed", "N/A"),
-                    "Last Update": case.get("date_modified", "N/A"),
-                    "Status": "Pending" if not case.get("date_terminated") else "Closed",
-                    "Key Rulings": "N/A",
-                    "Impact on Federal Grants": "Unknown",
-                    "Litigation Summary": "Details not available in CourtListener API. Click the link for more information."
-                })
-            return pd.DataFrame(case_list)
-        else:
-            st.warning("No recent litigation cases found via CourtListener API.")
-            return pd.DataFrame(columns=["Case Number", "Case Link", "Case Title", "Court", "Date Filed", "Last Update", "Status", "Key Rulings", "Impact on Federal Grants", "Litigation Summary"])
+        return data.get('packages', [])
     except requests.exceptions.RequestException as e:
-        st.error(f"Failed to fetch litigation data: {e}")
-        return pd.DataFrame()
+        st.error(f"Failed to fetch litigation data from GovInfo: {e}")
+        return []
 
-# Sample policy data with real Federal Register links
-policy_data = pd.DataFrame([
-    {"Policy Name": "Application of the Revised Version of the Uniform Guidance to Department Grants", "Policy Link": "[Link](https://www.federalregister.gov/documents/2025/01/16/2025-01050/application-of-the-revised-version-of-the-uniform-guidance-to-department-grants)", "Agency": "Department of Education",
-     "Effective Date": "2025-02-20", "Impact on Grants": "High",
-     "Policy Change Summary": "The policy introduces updated cost principles, administrative requirements, and audit standards to align with revised federal grant guidelines."},
+# Function to scrape RECAP Archive
+def scrape_recap_data(case_number):
+    search_url = f"https://www.courtlistener.com/recap/?q={case_number}"
+    try:
+        response = requests.get(search_url)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Extract key case details
+        case_title = soup.find('h3').text if soup.find('h3') else "N/A"
+        case_court = soup.find('div', class_='court').text if soup.find('div', class_='court') else "N/A"
+        case_status = soup.find('div', class_='status').text if soup.find('div', class_='status') else "Unknown"
+        case_link = response.url
+        
+        return {
+            'Case Number': case_number,
+            'Case Title': case_title,
+            'Court': case_court,
+            'Status': case_status,
+            'Case Link': f"[Link]({case_link})"
+        }
+    except requests.exceptions.RequestException as e:
+        st.error(f"Failed to fetch RECAP data: {e}")
+        return {}
+
+# Function to scrape PACER data
+def scrape_pacer_data(case_number):
+    search_url = f"https://www.pacermonitor.com/search/case?q={case_number}"
+    try:
+        response = requests.get(search_url)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Extract case details from PACER Monitor
+        case_title = soup.find('h1').text if soup.find('h1') else "N/A"
+        case_court = soup.find('span', class_='court').text if soup.find('span', class_='court') else "N/A"
+        case_status = soup.find('div', class_='status').text if soup.find('div', class_='status') else "Unknown"
+        case_link = response.url
+        
+        return {
+            'Case Number': case_number,
+            'PACER Case Title': case_title,
+            'PACER Court': case_court,
+            'PACER Status': case_status,
+            'PACER Link': f"[Link]({case_link})"
+        }
+    except requests.exceptions.RequestException as e:
+        st.error(f"Failed to fetch PACER data: {e}")
+        return {}
+
+# Function to integrate multiple data sources
+def integrate_case_data(api_key, start_date, case_number):
+    govinfo_data = fetch_govinfo_data(api_key, start_date)
+    recap_data = scrape_recap_data(case_number)
+    pacer_data = scrape_pacer_data(case_number)
+    combined_data = []
     
-    {"Policy Name": "Energy Grant Regulation Update", "Policy Link": "[Link](https://www.federalregister.gov/documents/2025/01/20/2025-01500/energy-grant-regulation-update)", "Agency": "Department of Energy",
-     "Effective Date": "2025-01-15", "Impact on Grants": "Moderate",
-     "Policy Change Summary": "This update revises compliance and reporting requirements for renewable energy projects receiving federal grants."}
-])
+    for case in govinfo_data:
+        gov_case_number = case.get('case_number', 'Unknown')
+        
+        # Merge data only if case number matches
+        if gov_case_number == case_number:
+            combined_case = {
+                'Case Number': gov_case_number,
+                'Case Title': case.get('title', 'Unknown Title'),
+                'Court': case.get('court', 'Unknown Court'),
+                'Date Filed': case.get('date', 'N/A'),
+                'Last Update': case.get('last_modified', 'N/A'),
+                'Status': "Pending",  # Default status until more data is fetched
+                'Key Rulings': "N/A",
+                'Impact on Federal Grants': "Unknown",
+                'Case Link': recap_data.get('Case Link', 'N/A')
+            }
+            # Update with RECAP and PACER data if available
+            combined_case.update(recap_data)
+            combined_case.update(pacer_data)
+            combined_data.append(combined_case)
+    
+    return combined_data
 
 # Streamlit UI
 st.set_page_config(page_title="Federal Litigation Tracker", layout="wide")
 st.title("Federal Litigation Tracker")
 st.write("Monitor federal lawsuits, key rulings, and policy changes affecting grant programs.")
 
-# Auto-refresh using a loop
+api_key = 'YOUR_API_KEY'
+start_date = '2024-01-20'
+case_number = 'specific_case_number'
+case_data = integrate_case_data(api_key, start_date, case_number)
+case_df = pd.DataFrame(case_data)
+
+# Auto-refresh every 30 minutes
 if "last_refresh" not in st.session_state or time.time() - st.session_state["last_refresh"] > 1800:
-    litigation_data = fetch_litigation_data()
-    st.session_state["litigation_data"] = litigation_data
+    st.session_state["case_data"] = case_df
     st.session_state["last_refresh"] = time.time()
 else:
-    litigation_data = st.session_state["litigation_data"]
+    case_df = st.session_state["case_data"]
 
-# Sidebar Filters
-st.sidebar.header("Filters")
-impact_filter = st.sidebar.selectbox("Filter by Grant Impact Level:", ["All", "Severe", "High", "Moderate", "Low"])
-if impact_filter != "All" and not litigation_data.empty:
-    litigation_data = litigation_data[litigation_data["Impact on Federal Grants"] == impact_filter]
-
-search_query = st.sidebar.text_input("Search by Case Title or Number:")
-if search_query and not litigation_data.empty:
-    litigation_data = litigation_data[litigation_data.apply(lambda row: search_query.lower() in row.to_string().lower(), axis=1)]
-
-# Display Litigation Data in Table
+# Display Litigation Cases
 st.subheader("Litigation Cases")
-if litigation_data.empty:
+if case_df.empty:
     st.write("No litigation cases available at this time.")
-st.dataframe(litigation_data)
-
-# Display Policy Data in Table
-st.subheader("Grant Policy Updates")
-st.dataframe(policy_data)
-
-# Display Policy Change Summaries
-st.subheader("Recent Policy Changes Impacting Grants")
-for _, row in policy_data.iterrows():
-    st.markdown(f"**[{row['Policy Name']}]({row['Policy Link']}) ({row['Agency']})**")
-    st.write(f"Effective Date: {row['Effective Date']}")
-    st.write(f"Impact Level: {row['Impact on Grants']}")
-    st.write(f"Change Summary: {row['Policy Change Summary']}")
-    st.write("---")
-
-# Display Litigation Change Summaries
-st.subheader("Recent Litigation Updates Impacting Grants")
-if litigation_data.empty:
-    st.write("No litigation updates available.")
-else:
-    for _, row in litigation_data.iterrows():
-        st.markdown(f"**[{row['Case Number']}]({row['Case Link']}) - {row['Case Title']} ({row['Court']})**")
-        st.write(f"Filed: {row['Date Filed']}, Last Update: {row['Last Update']}")
-        st.write(f"Status: {row['Status']}, Key Rulings: {row['Key Rulings']}")
-        st.write(f"Impact Level: {row['Impact on Federal Grants']}")
-        st.write(f"Litigation Summary: {row['Litigation Summary']}")
-        st.write("---")
+st.dataframe(case_df)
 
 # Alerts & Notifications Section
 st.sidebar.header("Alerts & Notifications")
