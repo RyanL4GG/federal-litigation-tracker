@@ -2,7 +2,7 @@ import sys
 import requests
 import streamlit as st
 import pandas as pd
-from streamlit_autorefresh import st_autorefresh
+import time
 
 # Function to fetch litigation data from CourtListener API (free source)
 def fetch_litigation_data():
@@ -45,11 +45,13 @@ st.set_page_config(page_title="Federal Litigation Tracker", layout="wide")
 st.title("Federal Litigation Tracker")
 st.write("Monitor federal lawsuits, key rulings, and policy changes affecting grant programs.")
 
-# Auto-refresh every 30 minutes
-st_autorefresh(interval=30*60*1000, key="data_refresh")
-
-# Fetch litigation data
-litigation_data = fetch_litigation_data()
+# Auto-refresh using a loop
+if "last_refresh" not in st.session_state or time.time() - st.session_state["last_refresh"] > 1800:
+    litigation_data = fetch_litigation_data()
+    st.session_state["litigation_data"] = litigation_data
+    st.session_state["last_refresh"] = time.time()
+else:
+    litigation_data = st.session_state["litigation_data"]
 
 # Sidebar Filters
 st.sidebar.header("Filters")
