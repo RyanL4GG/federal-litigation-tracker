@@ -12,7 +12,8 @@ def fetch_litigation_data():
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()  # Raise an error for HTTP errors
         data = response.json()
-        if "results" in data:
+        st.write("Raw API Response:", data)  # Debugging step to check API response
+        if "results" in data and len(data["results"]) > 0:
             case_list = []
             for case in data.get("results", []):
                 case_list.append({
@@ -29,8 +30,8 @@ def fetch_litigation_data():
                 })
             return pd.DataFrame(case_list)
         else:
-            st.error("No results found in API response.")
-            return pd.DataFrame()
+            st.warning("No recent litigation cases found.")
+            return pd.DataFrame(columns=["Case Number", "Case Link", "Case Title", "Court", "Date Filed", "Last Update", "Status", "Key Rulings", "Impact on Federal Grants", "Litigation Summary"])
     except requests.exceptions.RequestException as e:
         st.error(f"Failed to fetch litigation data: {e}")
         return pd.DataFrame()
@@ -62,15 +63,17 @@ else:
 # Sidebar Filters
 st.sidebar.header("Filters")
 impact_filter = st.sidebar.selectbox("Filter by Grant Impact Level:", ["All", "Severe", "High", "Moderate", "Low"])
-if impact_filter != "All":
+if impact_filter != "All" and not litigation_data.empty:
     litigation_data = litigation_data[litigation_data["Impact on Federal Grants"] == impact_filter]
 
 search_query = st.sidebar.text_input("Search by Case Title or Number:")
-if search_query:
+if search_query and not litigation_data.empty:
     litigation_data = litigation_data[litigation_data.apply(lambda row: search_query.lower() in row.to_string().lower(), axis=1)]
 
 # Display Litigation Data in Table
 st.subheader("Litigation Cases")
+if litigation_data.empty:
+    st.write("No litigation cases available at this time.")
 st.dataframe(litigation_data)
 
 # Display Policy Data in Table
@@ -88,13 +91,16 @@ for _, row in policy_data.iterrows():
 
 # Display Litigation Change Summaries
 st.subheader("Recent Litigation Updates Impacting Grants")
-for _, row in litigation_data.iterrows():
-    st.markdown(f"**[{row['Case Number']}]({row['Case Link']}) - {row['Case Title']} ({row['Court']})**")
-    st.write(f"Filed: {row['Date Filed']}, Last Update: {row['Last Update']}")
-    st.write(f"Status: {row['Status']}, Key Rulings: {row['Key Rulings']}")
-    st.write(f"Impact Level: {row['Impact on Federal Grants']}")
-    st.write(f"Litigation Summary: {row['Litigation Summary']}")
-    st.write("---")
+if litigation_data.empty:
+    st.write("No litigation updates available.")
+else:
+    for _, row in litigation_data.iterrows():
+        st.markdown(f"**[{row['Case Number']}]({row['Case Link']}) - {row['Case Title']} ({row['Court']})**")
+        st.write(f"Filed: {row['Date Filed']}, Last Update: {row['Last Update']}")
+        st.write(f"Status: {row['Status']}, Key Rulings: {row['Key Rulings']}")
+        st.write(f"Impact Level: {row['Impact on Federal Grants']}")
+        st.write(f"Litigation Summary: {row['Litigation Summary']}")
+        st.write("---")
 
 # Alerts & Notifications Section
 st.sidebar.header("Alerts & Notifications")
