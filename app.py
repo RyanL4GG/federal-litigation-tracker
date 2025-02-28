@@ -1,29 +1,33 @@
 import sys
+import requests
+import streamlit as st
+import pandas as pd
+from streamlit_autorefresh import st_autorefresh
 
-try:
-    import streamlit as st
-    import pandas as pd
-except ModuleNotFoundError:
-    sys.exit("Required module 'streamlit' not found. Install it using: pip install streamlit")
-
-# Sample litigation data with real PACER links
-litigation_data = pd.DataFrame([
-    {"Case Number": "22-001", "Case Link": "[Link](https://ecf.dcd.uscourts.gov/cgi-bin/DktRpt.pl?22-001)", "Case Title": "State v. Federal Agency", "Court": "D.C. District Court",
-     "Date Filed": "2024-02-10", "Last Update": "2025-02-25", "Status": "Active", 
-     "Key Rulings": "Preliminary Injunction Issued", "Impact on Federal Grants": "High"},
-    
-    {"Case Number": "23-045", "Case Link": "[Link](https://ecf.ca9.uscourts.gov/cgi-bin/DktRpt.pl?23-045)", "Case Title": "Nonprofit v. EPA", "Court": "9th Circuit",
-     "Date Filed": "2023-10-05", "Last Update": "2025-02-20", "Status": "Pending Decision",
-     "Key Rulings": "Motion to Dismiss Denied", "Impact on Federal Grants": "Moderate"},
-    
-    {"Case Number": "24-102", "Case Link": "[Link](https://ecf.cafc.uscourts.gov/cgi-bin/DktRpt.pl?24-102)", "Case Title": "Company v. Department of Energy", "Court": "Federal Circuit",
-     "Date Filed": "2024-01-15", "Last Update": "2025-02-22", "Status": "Active",
-     "Key Rulings": "No Injunction", "Impact on Federal Grants": "Low"},
-    
-    {"Case Number": "21-378", "Case Link": "[Link](https://ecf.dcd.uscourts.gov/cgi-bin/DktRpt.pl?21-378)", "Case Title": "Advocacy Group v. HHS", "Court": "D.C. Circuit",
-     "Date Filed": "2021-09-22", "Last Update": "2025-02-26", "Status": "Final Ruling",
-     "Key Rulings": "Permanent Injunction Issued", "Impact on Federal Grants": "Severe"}
-])
+# Function to fetch litigation data from CourtListener API (free source)
+def fetch_litigation_data():
+    url = "https://www.courtlistener.com/api/rest/v3/dockets/?type=federal"
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        case_list = []
+        for case in data.get("results", []):
+            case_list.append({
+                "Case Number": case.get("docket_number", "N/A"),
+                "Case Link": f"[Link]({case.get('absolute_url', '#')})",
+                "Case Title": case.get("case_name", "N/A"),
+                "Court": case.get("court", {}).get("name", "Unknown Court"),
+                "Date Filed": case.get("date_filed", "N/A"),
+                "Last Update": case.get("date_modified", "N/A"),
+                "Status": "Pending" if not case.get("date_terminated") else "Closed",
+                "Key Rulings": "N/A",
+                "Impact on Federal Grants": "Unknown",
+                "Litigation Summary": "Details not available in CourtListener API. Click the link for more information."
+            })
+        return pd.DataFrame(case_list)
+    else:
+        st.error("Failed to fetch litigation data.")
+        return pd.DataFrame()
 
 # Sample policy data with real Federal Register links
 policy_data = pd.DataFrame([
@@ -40,6 +44,12 @@ policy_data = pd.DataFrame([
 st.set_page_config(page_title="Federal Litigation Tracker", layout="wide")
 st.title("Federal Litigation Tracker")
 st.write("Monitor federal lawsuits, key rulings, and policy changes affecting grant programs.")
+
+# Auto-refresh every 30 minutes
+st_autorefresh(interval=30*60*1000, key="data_refresh")
+
+# Fetch litigation data
+litigation_data = fetch_litigation_data()
 
 # Sidebar Filters
 st.sidebar.header("Filters")
@@ -66,6 +76,16 @@ for _, row in policy_data.iterrows():
     st.write(f"Effective Date: {row['Effective Date']}")
     st.write(f"Impact Level: {row['Impact on Grants']}")
     st.write(f"Change Summary: {row['Policy Change Summary']}")
+    st.write("---")
+
+# Display Litigation Change Summaries
+st.subheader("Recent Litigation Updates Impacting Grants")
+for _, row in litigation_data.iterrows():
+    st.markdown(f"**[{row['Case Number']}]({row['Case Link']}) - {row['Case Title']} ({row['Court']})**")
+    st.write(f"Filed: {row['Date Filed']}, Last Update: {row['Last Update']}")
+    st.write(f"Status: {row['Status']}, Key Rulings: {row['Key Rulings']}")
+    st.write(f"Impact Level: {row['Impact on Federal Grants']}")
+    st.write(f"Litigation Summary: {row['Litigation Summary']}")
     st.write("---")
 
 # Alerts & Notifications Section
