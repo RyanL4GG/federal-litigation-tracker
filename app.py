@@ -33,12 +33,12 @@ policy_data = pd.DataFrame([
     {"Policy Name": "New Federal Grant Policy", "Agency": "Department of Education",
      "Effective Date": "2025-02-20", "Impact on Grants": "High",
      "Policy Link": "https://example.com/policy-education",
-     "Policy Change Summary": "Increased funding allocation and stricter eligibility criteria for grant recipients. [Read More]({row['Policy Link']})"},
+     "Policy Change Summary": "Increased funding allocation and stricter eligibility criteria for grant recipients."},
     
     {"Policy Name": "Energy Grant Regulation Update", "Agency": "Department of Energy",
      "Effective Date": "2025-01-15", "Impact on Grants": "Moderate",
      "Policy Link": "https://example.com/policy-energy",
-     "Policy Change Summary": "Updated reporting requirements for renewable energy projects receiving federal grants. [Read More]({row['Policy Link']})"}
+     "Policy Change Summary": "Updated reporting requirements for renewable energy projects receiving federal grants."}
 ])
 
 # Streamlit UI
@@ -56,20 +56,22 @@ search_query = st.sidebar.text_input("Search by Case Title or Number:")
 if search_query:
     litigation_data = litigation_data[litigation_data.apply(lambda row: search_query.lower() in row.to_string().lower(), axis=1)]
 
-# Display Litigation Data
+# Display Litigation Data in Table
 st.subheader("Litigation Cases")
-for _, row in litigation_data.iterrows():
-    st.markdown(f"**[{row['Case Number']}]({row['Litigation Link']}) - {row['Case Title']}**")
-    st.write(f"Court: {row['Court']}, Status: {row['Status']}, Last Update: {row['Last Update']}")
-    st.write(f"Key Rulings: {row['Key Rulings']}, Impact on Grants: {row['Impact on Federal Grants']}")
-    st.write("---")
+st.dataframe(litigation_data)
 
-# Display Policy Data
+# Display Policy Data in Table
 st.subheader("Grant Policy Updates")
+st.dataframe(policy_data)
+
+# Display Policy Change Summaries
+st.subheader("Recent Policy Changes Impacting Grants")
 for _, row in policy_data.iterrows():
-    st.markdown(f"**[{row['Policy Name']}]({row['Policy Link']}) - {row['Agency']}**")
-    st.write(f"Effective Date: {row['Effective Date']}, Impact Level: {row['Impact on Grants']}")
+    st.markdown(f"**{row['Policy Name']} ({row['Agency']})**")
+    st.write(f"Effective Date: {row['Effective Date']}")
+    st.write(f"Impact Level: {row['Impact on Grants']}")
     st.write(f"Change Summary: {row['Policy Change Summary']}")
+    st.markdown(f"[Read More]({row['Policy Link']})")
     st.write("---")
 
 # Alerts & Notifications Section
