@@ -13,6 +13,7 @@ litigation_cases = pd.DataFrame([
     {"Case Number": "1:25-cv-01144", "Case Title": "New York et al. v. Trump et al.", "Court": "Southern District of New York", "Date Filed": "2025-02-07", "Last Update": "2025-02-14", "Status": "Pending", "Case Link": "[Link](https://turn0search22)"},
     {"Case Number": "1:25-cv-00001", "Case Title": "AIDS Vaccine Advocacy Coalition v. Department of State", "Court": "District of Columbia", "Date Filed": "2025-01-20", "Last Update": "2025-02-27", "Status": "Pending", "Case Link": "[Link](https://turn0news13)"},
     {"Case Number": "1:25-cv-00333", "Case Title": "National Association of Diversity Officers in Higher Education et al. v. Trump et al.", "Court": "District of Maryland", "Date Filed": "2025-02-01", "Last Update": "2025-02-21", "Status": "Preliminary Injunction Granted", "Case Link": "[Link](https://turn0search1)"}
+    {"Case Number": "1:25-cv-00471", "Case Title": "National Urban League v. Trump", "Court": "District of Columbia", "Date Filed": "2025-02-19", "Last Update": "2025-02-28", "Status": "Pending", "Case Link": "[Link](https://turn0search1)"}
 ])
 
 # Function to fetch latest case updates
